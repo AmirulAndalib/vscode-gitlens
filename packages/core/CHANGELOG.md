@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixes Jira and Jira Data Center issue reads discarding the collection metadata of each search page, so an issue `@gitkraken/provider-apis` drops because it can't read it (GKDEV-3652, e.g. one whose type hides a field the normalizer needed) vanished with no warning. Project reads (`listIssueTrackerIssuesPage`, `IssuesIntegration.getIssuesForProject*`) keep its siblings and now report the drop as a `provider` failure scoped to its project: `fetchFailed`, a warning, and the project `truncated` with recovery `none`. A user-scoped search across projects that hits one is read project by project. A page whose every issue was unreadable no longer loses its failure to a later page error, and a project read the page backstop stopped after such a page also reports the backstop. `searchMyIssuesWithTruncationResult` (account-wide, which no facade read reaches for these trackers) carries the same metadata on both hosts; on Jira Cloud each site is drained on its own, so a site whose read failed keeps what it read and is reported as that site's failure (a refused one going through the scoped auth check) instead of being only logged, and a site the page backstop stopped makes the read `truncated`. Works with the current `@gitkraken/provider-apis` pin; the metadata appears once the SDK emits it ([#5992](https://github.com/gitkraken/vscode-gitlens/issues/5992)) (plus/integrations)
+
 ## [0.10.7] - 2026-10-15
 
 ### Changed

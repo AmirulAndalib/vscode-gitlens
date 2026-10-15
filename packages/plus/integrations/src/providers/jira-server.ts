@@ -10,7 +10,7 @@ import type { IntegrationAuthenticationProviderDescriptor } from '../authenticat
 import type { IntegrationAuthenticationService } from '../authentication/integrationAuthenticationService.js';
 import type { ProviderAuthenticationSession } from '../authentication/models.js';
 import { toTokenWithInfo } from '../authentication/models.js';
-import { toCollectionScopeFailure } from '../collectionMetadata.js';
+import { isIncompleteCollection, toCollectionScopeFailure } from '../collectionMetadata.js';
 import { IssuesSelfManagedHostIntegrationId } from '../constants.js';
 import type { IntegrationServiceContext } from '../context.js';
 import type { IntegrationConnectionChangeEvent } from '../integrationService.js';
@@ -34,6 +34,7 @@ import {
 	readUserScopedJiraIssues,
 	searchJiraProjectIssues,
 	toUniqueJiraIssueShapes,
+	withFailureScope,
 } from './utils/jiraIssueDrains.js';
 import { mergeCollectionMetadata } from './utils/providerPaging.js';
 
@@ -399,6 +400,13 @@ export class JiraServerIntegration extends IssuesIntegration<IssuesSelfManagedHo
 					.map(issue => toIssueShape(issue, this, { projection: 'account' }))
 					.filter((r): r is IssueShape => r != null),
 			);
+			// An issue the page dropped because it could not be read arrives here, not as a missing row; recorded under
+			// the same scope as this read's other failures.
+			if (page.metadata != null) {
+				// Truncated too, as Jira Cloud's read is through `getPagedResult`: the account is missing that issue.
+				truncated ||= isIncompleteCollection(page.metadata);
+				metadata = mergeCollectionMetadata(metadata, withFailureScope(page.metadata, accountScope));
+			}
 
 			if (!page.hasMore) break;
 
